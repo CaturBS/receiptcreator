@@ -4,11 +4,12 @@ import (
 	"log"
 
 	"encoding/json"
+	"fmt"
+
+	// "math"
 	"math/rand"
 	"strconv"
 	"time"
-
-	"fmt"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -40,18 +41,22 @@ type Receipt struct {
 	GrandTotal    int      `json:"grand_total"`
 }
 
-// func receiptNumber(counter int) string {
-
-// }
+func getReceiptNumber() string {
+	val := rand.Intn(1000000)
+	valText := "000000" + strconv.Itoa(val)
+	return valText[len(valText)-6:]
+}
 func randate() time.Time {
 	min := time.Date(2019, 1, 0, 0, 0, 0, 0, time.UTC).Unix()
-	max := time.Date(2024, 1, 0, 0, 0, 0, 0, time.UTC).Unix()
+	max := time.Date(2023, 3, 18, 0, 0, 0, 0, time.UTC).Unix()
 	delta := max - min
 
 	sec := rand.Int63n(delta) + min
 	return time.Unix(sec, 0)
 }
-
+func getSubTotal() int {
+	return 10000 + rand.Intn(23)*10000
+}
 func createRandomReceipt() (string, error) {
 	randIn := rand.Intn(150)
 	randSuffix := ""
@@ -61,8 +66,15 @@ func createRandomReceipt() (string, error) {
 		randSuffix = strconv.Itoa(randIn)
 	}
 	var devId string = "ND4X504E310200" + randSuffix
+	var subtotal = getSubTotal()
+	var tax = subtotal / 10
+	var grandTotal = subtotal + tax
 	// var datetimex =
-	randomReceipt := &Receipt{Devid: devId, Datetime: JSONTime{randate()}}
+	randomReceipt := &Receipt{Devid: devId, Datetime: JSONTime{randate()},
+		ReceiptNumber: getReceiptNumber(),
+		Subtotal:      subtotal,
+		Tax:           tax,
+		GrandTotal:    grandTotal}
 	data, err := json.Marshal(randomReceipt)
 	if err != nil {
 		return "", err
@@ -75,6 +87,7 @@ func main() {
 	myWindow := myApp.NewWindow("Choice Widgets")
 	x := time.Now()
 	log.Println(x)
+	rand.Seed(time.Now().UnixNano())
 	y, _ := createRandomReceipt()
 	log.Println(y)
 	y, _ = createRandomReceipt()
