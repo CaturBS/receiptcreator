@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"subaga.com/receiptcreator/custwidget"
+
 	// "math"
 	"math/rand"
 	"strconv"
@@ -15,13 +17,18 @@ import (
 	"fyne.io/fyne/v2/app"
 
 	// "fyne.io/fyne/v2/data/validation"
+	// "fyne.io/fyne/theme"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 )
 
 type JSONTime struct {
 	time.Time
 }
+
+type myTheme struct{}
 
 func (t JSONTime) MarshalJSON() ([]byte, error) {
 	//do your serializing here
@@ -84,16 +91,25 @@ func createRandomReceipt() (string, error) {
 
 func main() {
 	myApp := app.New()
-	myWindow := myApp.NewWindow("Choice Widgets")
+	// myApp.Settings().SetTheme(theme.Vari)
+	myWindow := myApp.NewWindow("Receipt Creator")
+	myWindow.Resize(fyne.NewSize(1200, 300))
 	x := time.Now()
 	log.Println(x)
 	rand.Seed(time.Now().UnixNano())
 	y, _ := createRandomReceipt()
 	log.Println(y)
-	y, _ = createRandomReceipt()
-	log.Println(y)
 	entry := widget.NewEntry()
+	entry.SetPlaceHolder("Enter text...")
+	button := widget.NewButton("select folder", func() {
+		log.Println("Form submitted:", entry.Text)
+		dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
+			entry.SetText(uri.Path())
+		}, myWindow)
+	})
+	centered := container.New(layout.NewVBoxLayout(), layout.NewSpacer(), button)
 	// entry.Disable()
+	entry1 := custwidget.NewIntegerEntry()
 
 	form := &widget.Form{
 		Items: []*widget.FormItem{},
@@ -107,7 +123,9 @@ func main() {
 	}
 
 	// we can also append items
-	form.Append("Entry", entry)
+	form.Append("Folder", entry)
+	form.Append("", centered)
+	form.Append("Entry", entry1)
 
 	myWindow.SetContent(form)
 
