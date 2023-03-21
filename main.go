@@ -1,14 +1,23 @@
 package main
 
 import (
-	"log"
+	// "log"
 
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"os"
+	"strings"
+
+	// "io/ioutil"
 
 	"subaga.com/receiptcreator/custwidget"
 
 	// "math"
+	// "bufio"
 	"math/rand"
 	"strconv"
 	"time"
@@ -46,6 +55,12 @@ type Receipt struct {
 	Service       int      `json:"service"`
 	Tax           int      `json:"tax"`
 	GrandTotal    int      `json:"grand_total"`
+	Filename      string   `json:"filename"`
+	Stamptime     string   `json:"stamptime"`
+	Valid         int      `json:"valid"`
+	Edit          int      `json:"edit"`
+	ReceiptHead   string   `json:"receipt_head"`
+	Forward       int      `json:"forward"`
 }
 
 func getReceiptNumber() string {
@@ -81,7 +96,11 @@ func createRandomReceipt() (string, error) {
 		ReceiptNumber: getReceiptNumber(),
 		Subtotal:      subtotal,
 		Tax:           tax,
-		GrandTotal:    grandTotal}
+		GrandTotal:    grandTotal,
+		Valid:         1,
+		Filename:      "BBS087741671156090",
+		ReceiptHead:   "NULL",
+		Stamptime:     "2023-03-10 16:38:13.0"}
 	data, err := json.Marshal(randomReceipt)
 	if err != nil {
 		return "", err
@@ -94,15 +113,10 @@ func main() {
 	// myApp.Settings().SetTheme(theme.Vari)
 	myWindow := myApp.NewWindow("Receipt Creator")
 	myWindow.Resize(fyne.NewSize(1200, 300))
-	x := time.Now()
-	log.Println(x)
 	rand.Seed(time.Now().UnixNano())
-	y, _ := createRandomReceipt()
-	log.Println(y)
 	entry := widget.NewEntry()
 	entry.SetPlaceHolder("Enter text...")
 	button := widget.NewButton("select folder", func() {
-		log.Println("Form submitted:", entry.Text)
 		dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
 			entry.SetText(uri.Path())
 		}, myWindow)
@@ -110,22 +124,61 @@ func main() {
 	centered := container.New(layout.NewVBoxLayout(), layout.NewSpacer(), button)
 	// entry.Disable()
 	entry1 := custwidget.NewIntegerEntry()
+	entry1.SetText("1000")
+	entry2 := custwidget.NewIntegerEntry()
+	entry2.SetText("5")
 
 	form := &widget.Form{
 		Items: []*widget.FormItem{},
 		OnSubmit: func() { // optional, handle form submission
-			log.Println("Form submitted:", entry.Text)
-			dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
-				entry.SetText(uri.Path())
-			}, myWindow)
-			// myWindow.Close()
+			loop, _ := strconv.Atoi(entry2.Text)
+			for i := 0; i < loop; i++ {
+				f, _ := os.Create(entry.Text + "/receipt")
+				defer f.Close()
+				count, _ := strconv.Atoi(entry1.Text)
+				f.WriteString("[")
+				for j := 0; j < count; j++ {
+					if j > 0 {
+						f.WriteString(",\n")
+					}
+					y, _ := createRandomReceipt()
+					// log.Println(strconv.Itoa(i) + ": " + y)
+					f.WriteString("\t" + y)
+				}
+				f.WriteString("\n]")
+				url := "http://localhost:8000/transaction?debug=true"
+				client := &http.Client{
+					Timeout: time.Second * 30,
+				}
+				body := &bytes.Buffer{}
+				writer := multipart.NewWriter(body)
+				fw, _ := writer.CreateFormField("device_id")
+				io.Copy(fw, strings.NewReader("bbs08774"))
+
+				fw, _ = writer.CreateFormFile("trans_file", "receipt")
+				file, _ := os.Open(entry.Text + "/receipt")
+				io.Copy(fw, file)
+				writer.Close()
+				// log.Println(body)
+				// log.Println(url)
+				req, _ := http.NewRequest("POST", url, bytes.NewReader(body.Bytes()))
+				req.Header.Set("Content-Type", writer.FormDataContentType())
+				req.Header.Set("Authorization", "Bearer YbrB5HQX2zicn8A3Ffif5ycoEMmd4JMhTjpFUM2V")
+				client.Do(req)
+
+				// b, _ := ioutil.ReadAll(resp.Body)
+				// log.Println(string(b))
+				// log.Println(resp.StatusCode)
+			}
+
 		},
 	}
 
 	// we can also append items
 	form.Append("Folder", entry)
 	form.Append("", centered)
-	form.Append("Entry", entry1)
+	form.Append("Limit", entry1)
+	form.Append("Loop", entry2)
 
 	myWindow.SetContent(form)
 
